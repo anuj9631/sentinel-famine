@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import REGIONS from "../data/regions";
+import React, { useState, useEffect } from "react";
+import { fetchRegions, fetchRiskScores, getRiskColor } from "../services/api";
 import RegionList from "../components/RegionList";
 import AlertPanel from "../components/AlertPanel";
 import Map from "../components/Map";
@@ -7,8 +7,48 @@ import SignalCard from "../components/SignalCard";
 import Briefing from "../components/Briefing";
 
 function Dashboard() {
-  const [selected, setSelected] = useState(REGIONS[0]);
+  const [regions, setRegions] = useState([]);
+  const [selected, setSelected] = useState(null);
   const [activeTab, setActiveTab] = useState("map");
+  const [loading, setLoading] = useState(true);
+
+  // load data from supabase on start
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+
+      const regionsData = await fetchRegions();
+      const scoresData = await fetchRiskScores();
+
+      // merge region info with latest risk scores
+      const merged = regionsData.map((region) => {
+        const score = scoresData.find(
+          (s) => s.region_id === region.id
+        );
+        return {
+          ...region,
+          risk_score: score?.risk_score || 0,
+          ndvi: score?.ndvi || 0,
+          rainfall: score?.rainfall || 0,
+          food_price: score?.food_price || 0,
+          conflict: score?.conflict || 0,
+          // keep old keys working too
+          risk: score?.risk_score || 0,
+          foodPrice: score?.food_price || 0,
+          pop: region.population,
+          drivers: [],
+          alert: (score?.risk_score || 0) >= 70,
+        };
+      });
+
+      const sorted = merged.sort((a, b) => b.risk_score - a.risk_score);
+      setRegions(sorted);
+      setSelected(sorted[0]);
+      setLoading(false);
+    }
+
+    loadData();
+  }, []);
 
   const tabs = [
     { id: "map", label: "RISK MAP" },
@@ -16,13 +56,32 @@ function Dashboard() {
     { id: "briefing", label: "AI BRIEFING" },
   ];
 
-  const alertCount = REGIONS.filter((r) => r.risk >= 70).length;
-  const criticalCount = REGIONS.filter((r) => r.risk >= 85).length;
+  const alertCount = regions.filter((r) => r.risk_score >= 70).length;
+  const criticalCount = regions.filter((r) => r.risk_score >= 85).length;
+
+  if (loading) {
+    return (
+      <div style={{
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#080c10",
+        color: "#3a5a7a",
+        fontSize: "13px",
+        letterSpacing: "0.1em",
+      }}>
+        SENTINEL LOADING DATA FROM DATABASE...
+      </div>
+    );
+  }
+
+  if (!selected) return null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
 
-      {/* Top header */}
+      {/* Header */}
       <div style={{
         background: "#060a0e",
         borderBottom: "1px solid #1a2a3a",
@@ -32,7 +91,6 @@ function Dashboard() {
         justifyContent: "space-between",
         flexShrink: 0,
       }}>
-        {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={{
             width: "8px",
@@ -48,15 +106,10 @@ function Dashboard() {
           }}>
             SENTINEL
           </span>
-          <span style={{
-            fontSize: "11px",
-            color: "#3a5a7a",
-          }}>
+          <span style={{ fontSize: "11px", color: "#3a5a7a" }}>
             // Predictive Famine Intelligence Platform
           </span>
         </div>
-
-        {/* Status */}
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -81,22 +134,19 @@ function Dashboard() {
         overflowX: "auto",
       }}>
         {[
-          { label: "REGIONS MONITORED", value: "8", color: null },
+          { label: "REGIONS MONITORED", value: regions.length },
           { label: "CRITICAL RISK", value: criticalCount, color: "#FF3B30" },
           { label: "HIGH RISK", value: alertCount - criticalCount, color: "#FF9500" },
           { label: "PEOPLE AT RISK", value: "96.2M", color: "#FFCC00" },
-          { label: "DATA SOURCES", value: "7 APIs", color: null },
+          { label: "DATA SOURCES", value: "7 APIs" },
           { label: "MODEL ACCURACY", value: "84.3%", color: "#34C759" },
         ].map((stat, i) => (
-          <div
-            key={i}
-            style={{
-              padding: "8px 20px",
-              borderRight: "1px solid #1a2a3a",
-              textAlign: "center",
-              flexShrink: 0,
-            }}
-          >
+          <div key={i} style={{
+            padding: "8px 20px",
+            borderRight: "1px solid #1a2a3a",
+            textAlign: "center",
+            flexShrink: 0,
+          }}>
             <div style={{
               fontSize: "10px",
               color: "#3a5a7a",
@@ -117,20 +167,16 @@ function Dashboard() {
       </div>
 
       {/* Main layout */}
-      <div style={{
-        display: "flex",
-        flex: 1,
-        overflow: "hidden",
-      }}>
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-        {/* Left — region list */}
+        {/* Left */}
         <RegionList
-          regions={REGIONS}
+          regions={regions}
           selected={selected}
           onSelect={setSelected}
         />
 
-        {/* Center — tabs + content */}
+        {/* Center */}
         <div style={{
           flex: 1,
           display: "flex",
@@ -138,8 +184,7 @@ function Dashboard() {
           overflowY: "auto",
           background: "#080c10",
         }}>
-
-          {/* Tab buttons */}
+          {/* Tabs */}
           <div style={{
             display: "flex",
             borderBottom: "1px solid #1a2a3a",
@@ -173,7 +218,7 @@ function Dashboard() {
           <div style={{ flex: 1 }}>
             {activeTab === "map" && (
               <Map
-                regions={REGIONS}
+                regions={regions}
                 selected={selected}
                 onSelect={setSelected}
               />
@@ -187,9 +232,9 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Right — alerts */}
+        {/* Right */}
         <AlertPanel
-          regions={REGIONS}
+          regions={regions}
           selected={selected}
           onSelect={setSelected}
         />
