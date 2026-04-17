@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { fetchRegions, fetchRiskScores, getRiskColor } from "../services/api";
+// CORRECT
+import { fetchRegions, fetchRiskScores } from "../services/api";
 import RegionList from "../components/RegionList";
 import AlertPanel from "../components/AlertPanel";
 import Map from "../components/Map";
@@ -169,14 +170,13 @@ function Dashboard() {
       {/* Main layout */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-        {/* Left */}
         <RegionList
           regions={regions}
           selected={selected}
           onSelect={setSelected}
         />
 
-        {/* Center */}
+       
         <div style={{
           flex: 1,
           display: "flex",
@@ -232,7 +232,6 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Right */}
         <AlertPanel
           regions={regions}
           selected={selected}

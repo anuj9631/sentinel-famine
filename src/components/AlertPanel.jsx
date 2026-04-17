@@ -1,5 +1,6 @@
 import React from "react";
-import { getRiskColor, getRiskLabel } from "../services/api";
+// CORRECT
+import { getRiskColor } from "../services/api";
 
 function AlertPanel({ regions, selected, onSelect }) {
   const alerts = [...regions]
