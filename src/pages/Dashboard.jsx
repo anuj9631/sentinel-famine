@@ -6,6 +6,7 @@ import AlertPanel from "../components/AlertPanel";
 import Map from "../components/Map";
 import SignalCard from "../components/SignalCard";
 import Briefing from "../components/Briefing";
+import { Link } from "react-router-dom";
 
 function Dashboard() {
   const [regions, setRegions] = useState([]);
